@@ -1,8 +1,5 @@
 /**
  * Sistema Suizo simplificado (Dutch System básico)
- * - Agrupa por puntuación
- * - Empareja jugadores con puntuación similar
- * - Balancea colores
  */
 
 class Player {
@@ -11,12 +8,12 @@ class Player {
         this.name = name;
         this.elo = parseInt(elo);
         this.points = 0;
-        this.roundPoints = [];   // puntos por ronda
-        this.progressive = 0; // desempate progresivo
+        this.roundPoints = [];
+        this.progressive = 0;
         this.buchholz = 0;
         this.sonnebornBerger = 0;
-        this.history = []; // IDs de rivales
-        this.colorHistory = []; // 'w' o 'b'
+        this.history = [];
+        this.colorHistory = [];
         this.active = true;
     }
 }
@@ -25,7 +22,7 @@ class Match {
     constructor(whitePlayerId, blackPlayerId) {
         this.white = whitePlayerId;
         this.black = blackPlayerId;
-        this.result = null; // '1-0', '0-1', '0.5-0.5'
+        this.result = null;
     }
 }
 
@@ -36,8 +33,8 @@ class Tournament {
         this.currentRoundIndex = 0;
         this.started = false;
         this.finished = false;
-        this.nextPlayerId = 1; // contador único de jugadores
-        this.totalRounds = 0;  // ⬅️ nuevo
+        this.nextPlayerId = 1;
+        this.totalRounds = 0;
     }
 
     addPlayer(name, elo) {
@@ -47,21 +44,16 @@ class Tournament {
         return player;
     }
 
-    removePlayer(id) { 
-        if (this.started) { 
-            throw new Error("No se pueden borrar jugadores después de iniciar el torneo"); 
-        } 
-            const idx = this.players.findIndex(p => p.id === id); 
-            if (idx === -1) { 
-                throw new Error("Jugador no encontrado"); 
-            } 
-            this.players.splice(idx, 1); 
-        }
+    removePlayer(id) {
+        if (this.started) throw new Error("No se pueden borrar jugadores después de iniciar el torneo");
+        const idx = this.players.findIndex(p => p.id === id);
+        if (idx === -1) throw new Error("Jugador no encontrado");
+        this.players.splice(idx, 1);
+    }
 
-    startTournament(totalRounds) { // ⬅️ número de rondas configurable
+    startTournament(totalRounds) {
         if (this.players.length < 2) throw new Error("Se necesitan al menos 2 jugadores");
-      // Si no se pasa número de rondas, calcularlo automáticamente
-        if (!totalRounds) { totalRounds = Math.ceil(Math.log2(this.players.length)) + 2; }
+        if (!totalRounds) totalRounds = Math.ceil(Math.log2(this.players.length)) + 2;
         this.started = true;
         this.totalRounds = totalRounds;
         this.generateNextRound();
@@ -70,13 +62,11 @@ class Tournament {
     generateNextRound() {
         if (this.finished) return;
 
-        // Si ya hemos alcanzado el total de rondas, marcar como finalizado
         if (this.rounds.length >= this.totalRounds) {
             this.finished = true;
             return;
         }
 
-        // Comprobar que la ronda anterior esté completa
         if (this.rounds.length > 0) {
             const lastRound = this.rounds[this.rounds.length - 1];
             if (lastRound.some(m => m.result === null)) {
@@ -86,16 +76,21 @@ class Tournament {
 
         const activePlayers = this.players.filter(p => p.active);
         let field = [...activePlayers];
-        let byePlayer = null;
 
-        // Si número impar de jugadores → asignar BYE
+        // BYE al peor jugador
         if (field.length % 2 !== 0) {
-            field.sort((a, b) => a.points - b.points || a.elo - b.elo);
-            byePlayer = field.shift();
-            byePlayer.points += 1;
-            byePlayer.history.push('BYE');
-            byePlayer.colorHistory.push('-');
-            byePlayer.roundPoints[this.rounds.length] = 1; // ⬅️ registrar punto por BYE
+
+            const byeCandidate = [...field].sort((a, b) => {
+                if (a.points !== b.points) return a.points - b.points;
+                return b.id - a.id; // último inscrito entre iguales
+            })[0];
+
+            field = field.filter(p => p.id !== byeCandidate.id);
+
+            byeCandidate.points += 1;
+            byeCandidate.history.push("BYE");
+            byeCandidate.colorHistory.push("-");
+            byeCandidate.roundPoints[this.rounds.length] = 1;
         }
 
         // Ordenar por puntos y ELO
@@ -104,44 +99,47 @@ class Tournament {
             return b.elo - a.elo;
         });
 
+        // Split pairing
+        const half = Math.floor(field.length / 2);
+        const top = field.slice(0, half);
+        const bottom = field.slice(half);
+
         const pairings = [];
 
-        while (field.length > 0) {
-            const p1 = field.shift();
-            let opponentIndex = -1;
+        for (let i = 0; i < half; i++) {
+            const p1 = top[i];
+            const p2 = bottom[i];
 
-            for (let i = 0; i < field.length; i++) {
-                const p2 = field[i];
-                if (!p1.history.includes(p2.id)) {
-                    opponentIndex = i;
-                    break;
+            // Evitar rivales repetidos
+            if (p1.history.includes(p2.id)) {
+                for (let j = i + 1; j < bottom.length; j++) {
+                    if (!p1.history.includes(bottom[j].id)) {
+                        [bottom[i], bottom[j]] = [bottom[j], bottom[i]];
+                        break;
+                    }
                 }
             }
 
-            if (opponentIndex === -1 && field.length > 0) {
-                opponentIndex = 0;
+            const whiteCount1 = p1.colorHistory.filter(c => c === 'w').length;
+            const whiteCount2 = p2.colorHistory.filter(c => c === 'w').length;
+
+            let p1IsWhite = true;
+            if (whiteCount1 > whiteCount2) p1IsWhite = false;
+            else if (whiteCount2 > whiteCount1) p1IsWhite = true;
+            else p1IsWhite = Math.random() < 0.5;
+
+            if (p1IsWhite) {
+                pairings.push(new Match(p1.id, p2.id));
+                p1.colorHistory.push('w');
+                p2.colorHistory.push('b');
+            } else {
+                pairings.push(new Match(p2.id, p1.id));
+                p1.colorHistory.push('b');
+                p2.colorHistory.push('w');
             }
 
-            if (opponentIndex !== -1) {
-                const p2 = field.splice(opponentIndex, 1)[0];
-                const p1WhiteCount = p1.colorHistory.filter(c => c === 'w').length;
-                const p2WhiteCount = p2.colorHistory.filter(c => c === 'w').length;
-
-                let p1IsWhite = true;
-                if (p1WhiteCount > p2WhiteCount) {
-                    p1IsWhite = false;
-                } else if (p2WhiteCount > p1WhiteCount) {
-                    p1IsWhite = true;
-                } else {
-                    p1IsWhite = Math.random() < 0.5;
-                }
-
-                if (p1IsWhite) {
-                    pairings.push(new Match(p1.id, p2.id));
-                } else {
-                    pairings.push(new Match(p2.id, p1.id));
-                }
-            }
+            p1.history.push(p2.id);
+            p2.history.push(p1.id);
         }
 
         this.rounds.push(pairings);
@@ -156,58 +154,69 @@ class Tournament {
         const w = this.players.find(p => p.id === match.white);
         const b = this.players.find(p => p.id === match.black);
 
-        // Actualizar historial de rivales y colores
         if (!w.history.includes(b.id)) w.history.push(b.id);
         if (!b.history.includes(w.id)) b.history.push(w.id);
-        w.colorHistory.push('w');
-        b.colorHistory.push('b');
     }
 
     calculateStandings() {
+
+        // Reiniciar valores
         this.players.forEach(p => {
             p.points = 0;
-            p.roundPoints = []; // ⬅️ reiniciar array
+            p.roundPoints = [];
             p.progressive = 0;
             p.buchholz = 0;
             p.sonnebornBerger = 0;
         });
 
+        // Sumar puntos de partidas
         this.rounds.forEach((round, roundIndex) => {
             round.forEach(m => {
                 if (!m.result) return;
+
                 const w = this.players.find(p => p.id === m.white);
                 const b = this.players.find(p => p.id === m.black);
 
                 let wPoints = 0, bPoints = 0;
-                if (m.result === '1-0') { wPoints = 1; }
-                else if (m.result === '0-1') { bPoints = 1; }
+                if (m.result === '1-0') wPoints = 1;
+                else if (m.result === '0-1') bPoints = 1;
                 else { wPoints = 0.5; bPoints = 0.5; }
 
                 w.points += wPoints;
                 b.points += bPoints;
 
-                // ⬅️ cálculo progresivo 
-                w.progressive += w.points; 
-                b.progressive += b.points;
-
-                // ⬅️ guardar puntos de esta ronda
                 w.roundPoints[roundIndex] = wPoints;
                 b.roundPoints[roundIndex] = bPoints;
+
+                // Progresivo solo si no es BYE
+                if (m.white !== "BYE" && m.black !== "BYE") {
+                    w.progressive += w.points;
+                    b.progressive += b.points;
+                }
             });
         });
 
+        // Añadir puntos por BYE y calcular desempates
         this.players.forEach(p => {
-            const byes = p.history.filter(h => h === 'BYE').length;
+
+            // Sumar BYE
+            const byes = p.history.filter(h => h === "BYE").length;
             p.points += byes;
 
             let bh = 0, sb = 0;
+
             this.rounds.forEach(round => {
                 const match = round.find(m => m.white === p.id || m.black === p.id);
-                if (match && match.result) {
+
+                if (!match || match.white === "BYE" || match.black === "BYE") return;
+
+                if (match.result) {
                     const oppId = match.white === p.id ? match.black : match.white;
                     const opponent = this.players.find(op => op.id === oppId);
+
                     if (opponent) {
                         bh += opponent.points;
+
                         let myScore = 0;
                         if (match.white === p.id) {
                             if (match.result === '1-0') myScore = 1;
@@ -216,18 +225,23 @@ class Tournament {
                             if (match.result === '0-1') myScore = 1;
                             else if (match.result === '0.5-0.5') myScore = 0.5;
                         }
-                        sb += (opponent.points * myScore);
+
+                        sb += opponent.points * myScore;
                     }
                 }
             });
+
             p.buchholz = bh;
             p.sonnebornBerger = sb;
         });
 
         return [...this.players].sort((a, b) => {
-            if (b.points !== a.points) return b.points - a.points;
-            if (b.buchholz !== a.buchholz) return b.buchholz - a.buchholz;
-            return b.sonnebornBerger - a.sonnebornBerger;
-        });
+    if (b.points !== a.points) return b.points - a.points;
+    if (b.progressive !== a.progressive) return b.progressive - a.progressive;
+    if (b.buchholz !== a.buchholz) return b.buchholz - a.buchholz;
+    if (b.sonnebornBerger !== a.sonnebornBerger) return b.sonnebornBerger - a.sonnebornBerger;
+    return a.id - b.id;
+});
+
     }
 }

@@ -24,6 +24,7 @@ const els = {
     fileInput: document.getElementById('file-input'),
     standingsHead: document.getElementById('standings-head'),
     startMessage: document.getElementById('start-message')
+    btnNew: document.getElementById('btn-new')
 };
 
 // Initial Render
@@ -113,6 +114,12 @@ els.btnSave.addEventListener('click', () => {
 });
 
 els.btnLoad.addEventListener('click', () => els.fileInput.click());
+
+els.btnNew.addEventListener('click', () => {
+    if (!confirm("¿Seguro que quieres empezar un torneo nuevo? Se perderán los datos actuales.")) return;
+    resetTournament();
+});
+
 
 els.fileInput.addEventListener('change', (e) => {
     const file = e.target.files[0];
@@ -208,6 +215,37 @@ function updateUI() {
 
 }
 
+function resetTournament() {
+    // Nuevo objeto Tournament vacío
+    app.tournament = new Tournament();
+
+    // Limpiar UI de jugadores
+    els.playerList.innerHTML = "";
+    els.playerCount.textContent = "0";
+
+    // Emparejamientos
+    els.pairingsList.innerHTML = `<div class="empty-state">El torneo no ha comenzado. Añade jugadores y pulsa Iniciar.</div>`;
+
+    // Clasificación
+    els.standingsBody.innerHTML = "";
+    els.roundNum.textContent = "0";
+
+    // Estado del torneo
+    els.status.textContent = "No Iniciado";
+    els.status.style.background = "#334155"; // gris
+    els.startMessage.style.display = "none";
+
+    // Botones
+    els.btnStart.style.display = "inline-block";
+    els.btnNext.style.display = "none";
+
+    // Volver a pestaña "Jugadores"
+    switchTab("players");
+
+    updateUI();
+}
+
+
 function renderPairings() {
     const roundIdx = app.tournament.rounds.length - 1;
     const matches = app.tournament.rounds[roundIdx];
@@ -267,3 +305,4 @@ function restoreTournament(data) {
         els.status.style.background = '#22c55e';
     }
 }
+

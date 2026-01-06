@@ -23,7 +23,7 @@ const els = {
     btnLoad: document.getElementById('btn-load'),
     fileInput: document.getElementById('file-input'),
     standingsHead: document.getElementById('standings-head'),
-    startMessage: document.getElementById('start-message')
+    startMessage: document.getElementById('start-message'),
     btnNew: document.getElementById('btn-new')
 };
 
@@ -116,9 +116,12 @@ els.btnSave.addEventListener('click', () => {
 els.btnLoad.addEventListener('click', () => els.fileInput.click());
 
 els.btnNew.addEventListener('click', () => {
-    if (!confirm("¿Seguro que quieres empezar un torneo nuevo? Se perderán los datos actuales.")) return;
-    resetTournament();
+    const seguro = window.confirm("¿Seguro que quieres empezar un torneo nuevo? Se perderán los datos actuales.");
+    if (seguro) {
+        resetTournament();
+    }
 });
+
 
 
 els.fileInput.addEventListener('change', (e) => {
@@ -163,6 +166,14 @@ function updateUI() {
 
     // Update Round Info
     els.roundNum.innerText = app.tournament.rounds.length;
+
+    if (els.btnNew) {
+    els.btnNew.addEventListener('click', () => {
+        if (!confirm("¿Seguro que quieres empezar un torneo nuevo? Se perderán los datos actuales.")) return;
+        resetTournament();
+    });
+}
+
 
     // Render Pairings
     if (app.tournament.rounds.length > 0) {
@@ -216,8 +227,15 @@ function updateUI() {
 }
 
 function resetTournament() {
-    // Nuevo objeto Tournament vacío
-    app.tournament = new Tournament();
+
+    // Limpiar datos del torneo SIN reemplazar la instancia
+    app.tournament.players = [];
+    app.tournament.rounds = [];
+    app.tournament.currentRoundIndex = 0;
+    app.tournament.started = false;
+    app.tournament.finished = false;
+    app.tournament.nextPlayerId = 1;
+    app.tournament.totalRounds = 0;
 
     // Limpiar UI de jugadores
     els.playerList.innerHTML = "";
@@ -232,7 +250,7 @@ function resetTournament() {
 
     // Estado del torneo
     els.status.textContent = "No Iniciado";
-    els.status.style.background = "#334155"; // gris
+    els.status.style.background = "#334155";
     els.startMessage.style.display = "none";
 
     // Botones
@@ -244,6 +262,7 @@ function resetTournament() {
 
     updateUI();
 }
+
 
 
 function renderPairings() {
@@ -305,4 +324,3 @@ function restoreTournament(data) {
         els.status.style.background = '#22c55e';
     }
 }
-

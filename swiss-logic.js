@@ -93,11 +93,15 @@ class Tournament {
             byeCandidate.roundPoints[this.rounds.length] = 1;
         }
 
-        // Ordenar por puntos y ELO
-        field.sort((a, b) => {
-            if (b.points !== a.points) return b.points - a.points;
-            return b.elo - a.elo;
-        });
+        // ORDEN CORRECTO: usar la clasificación real antes de emparejar
+const standings = this.calculateStandings();
+
+field.sort((a, b) => {
+    const posA = standings.findIndex(p => p.id === a.id);
+    const posB = standings.findIndex(p => p.id === b.id);
+    return posA - posB;
+});
+
 
         // Split pairing
         const half = Math.floor(field.length / 2);
@@ -245,3 +249,4 @@ class Tournament {
 
     }
 }
+

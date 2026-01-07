@@ -35,7 +35,7 @@ els.tabs.forEach(btn => {
     btn.addEventListener('click', () => {
         const tab = btn.getAttribute('data-tab');
         switchTab(tab);
-        updateUI(); // Refresh views on tab switch
+        updateUI();
     });
 });
 
@@ -53,7 +53,7 @@ els.btnAddPlayer.addEventListener('click', () => {
     }
 });
 
-// ➡️ Añadir jugador con Enter
+// Añadir jugador con Enter
 els.inputName.addEventListener("keypress", (e) => {
     if (e.key === "Enter") {
         const name = els.inputName.value.trim();
@@ -72,16 +72,20 @@ els.inputName.addEventListener("keypress", (e) => {
 
 els.btnStart.addEventListener('click', () => {
     try {
-        app.tournament.startTournament(); // ⬅️ número de rondas por defecto
+        app.tournament.startTournament();
         els.btnStart.style.display = 'none';
         els.btnNext.style.display = 'inline-block';
         els.status.textContent = 'En Curso';
-        els.status.style.background = '#22c55e'; // Green
+        els.status.style.background = '#22c55e';
         switchTab('pairings');
-        // Mensaje de inicio
         els.startMessage.textContent = `El torneo tendrá ${app.tournament.totalRounds} rondas. ¡Suerte a todos!`;
         els.startMessage.style.display = "block";
         updateUI();
+
+        // NUEVO: actualizar selector y mostrar ronda actual
+        updateRoundSelector();
+        showRound(app.tournament.currentRoundIndex);
+
     } catch (e) {
         alert(e.message);
     }
@@ -92,11 +96,18 @@ els.btnNext.addEventListener('click', () => {
         app.tournament.generateNextRound();
         if (app.tournament.finished) {
             els.status.textContent = 'Finalizado';
-            els.status.style.background = '#ef4444'; // rojo
+            els.status.style.background = '#ef4444';
             els.btnNext.style.display = 'none';
             els.startMessage.textContent = `🏆 El torneo ha finalizado tras ${app.tournament.totalRounds} rondas. ¡Enhorabuena a los participantes!`;
-            els.startMessage.style.display = "block"; }
+            els.startMessage.style.display = "block";
+        }
+
         updateUI();
+
+        // NUEVO: actualizar selector y mostrar ronda actual
+        updateRoundSelector();
+        showRound(app.tournament.currentRoundIndex);
+
     } catch (e) {
         alert(e.message);
     }
@@ -122,8 +133,6 @@ els.btnNew.addEventListener('click', () => {
     }
 });
 
-
-
 els.fileInput.addEventListener('change', (e) => {
     const file = e.target.files[0];
     if (!file) return;
@@ -140,7 +149,6 @@ els.fileInput.addEventListener('change', (e) => {
     };
     reader.readAsText(file);
 });
-
 
 // Functions
 
@@ -159,21 +167,13 @@ function updateUI() {
         <li>
             <span><b>#${p.id} ${p.name}</b> <small>(${p.elo})</small></span>
             <span>${p.points} pts</span>
-        <button class="btn-danger btn-sm" onclick="deletePlayer(${p.id})">Borrar</button>
+            <button class="btn-danger btn-sm" onclick="deletePlayer(${p.id})">Borrar</button>
         </li>
     `).join('');
     els.playerCount.innerText = app.tournament.players.length;
 
     // Update Round Info
     els.roundNum.innerText = app.tournament.rounds.length;
-
-    if (els.btnNew) {
-    els.btnNew.addEventListener('click', () => {
-        if (!confirm("¿Seguro que quieres empezar un torneo nuevo? Se perderán los datos actuales.")) return;
-        resetTournament();
-    });
-}
-
 
     // Render Pairings
     if (app.tournament.rounds.length > 0) {
@@ -185,7 +185,6 @@ function updateUI() {
         const sorted = app.tournament.calculateStandings();
         const totalRounds = app.tournament.rounds.length;
 
-        // Generar cabecera dinámica
         const headRow = els.standingsHead.querySelector('tr');
         headRow.innerHTML = `
             <th>#</th>
@@ -198,7 +197,6 @@ function updateUI() {
             <th>S.B.</th>
         `;
 
-        // Renderizar filas
         els.standingsBody.innerHTML = sorted.map((p, i) => `
             <tr>
                 <td>${i + 1}</td>
@@ -219,16 +217,13 @@ function updateUI() {
         els.btnNext.style.display = 'inline-block';
     }
     if (app.tournament.finished) {
-    els.btnNext.style.display = 'none';
-    els.startMessage.textContent = `🏆 El torneo ha finalizado tras ${app.tournament.totalRounds} rondas. ¡Enhorabuena a los participantes!`;
-    els.startMessage.style.display = "block";
-}
-
+        els.btnNext.style.display = 'none';
+        els.startMessage.textContent = `🏆 El torneo ha finalizado tras ${app.tournament.totalRounds} rondas. ¡Enhorabuena a los participantes!`;
+        els.startMessage.style.display = "block";
+    }
 }
 
 function resetTournament() {
-
-    // Limpiar datos del torneo SIN reemplazar la instancia
     app.tournament.players = [];
     app.tournament.rounds = [];
     app.tournament.currentRoundIndex = 0;
@@ -237,33 +232,25 @@ function resetTournament() {
     app.tournament.nextPlayerId = 1;
     app.tournament.totalRounds = 0;
 
-    // Limpiar UI de jugadores
     els.playerList.innerHTML = "";
     els.playerCount.textContent = "0";
 
-    // Emparejamientos
     els.pairingsList.innerHTML = `<div class="empty-state">El torneo no ha comenzado. Añade jugadores y pulsa Iniciar.</div>`;
 
-    // Clasificación
     els.standingsBody.innerHTML = "";
     els.roundNum.textContent = "0";
 
-    // Estado del torneo
     els.status.textContent = "No Iniciado";
     els.status.style.background = "#334155";
     els.startMessage.style.display = "none";
 
-    // Botones
     els.btnStart.style.display = "inline-block";
     els.btnNext.style.display = "none";
 
-    // Volver a pestaña "Jugadores"
     switchTab("players");
 
     updateUI();
 }
-
-
 
 function renderPairings() {
     const roundIdx = app.tournament.rounds.length - 1;
@@ -308,7 +295,6 @@ window.deletePlayer = (id) => {
     }
 };
 
-
 function restoreTournament(data) {
     app.tournament = new Tournament();
     Object.assign(app.tournament, data);
@@ -324,3 +310,60 @@ function restoreTournament(data) {
         els.status.style.background = '#22c55e';
     }
 }
+
+// ===============================
+//   VISUALIZAR RONDAS ANTERIORES
+// ===============================
+
+function updateRoundSelector() {
+    const selector = document.getElementById("roundSelector");
+    if (!selector) return;
+
+    selector.innerHTML = "";
+
+    for (let i = 0; i < app.tournament.rounds.length; i++) {
+        const opt = document.createElement("option");
+        opt.value = i;
+        opt.textContent = `Ronda ${i + 1}`;
+        selector.appendChild(opt);
+    }
+
+    selector.value = app.tournament.currentRoundIndex;
+}
+
+function showRound(roundIndex) {
+    const container = document.getElementById("roundView");
+    if (!container) return;
+
+    const round = app.tournament.rounds[roundIndex];
+
+    if (!round) {
+        container.innerHTML = "<p>No hay datos de esta ronda.</p>";
+        return;
+    }
+
+    let html = `<h3>Ronda ${roundIndex + 1}</h3>`;
+    html += `<table class="standings-table">
+                <tr><th>Blancas</th><th>Negras</th><th>Resultado</th></tr>`;
+
+    round.forEach(match => {
+        const white = app.tournament.players.find(p => p.id === match.white)?.name || "BYE";
+        const black = app.tournament.players.find(p => p.id === match.black)?.name || "BYE";
+
+        html += `<tr>
+                    <td>${white}</td>
+                    <td>${black}</td>
+                    <td>${match.result || "-"}</td>
+                 </tr>`;
+    });
+
+    html += "</table>";
+
+    container.innerHTML = html;
+}
+
+// Listener del selector
+document.getElementById("roundSelector")?.addEventListener("change", function () {
+    const roundIndex = parseInt(this.value);
+    showRound(roundIndex);
+});
